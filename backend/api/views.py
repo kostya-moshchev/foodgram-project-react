@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from recipes.models import User,Tag, Ingredient, Recipe, IngredientQuantity, Subscription, FavoriteRecipe
-from .serializers import AddFavoriteRecipeSerializer, TagSerializer, IngredientSerializer, RecipeSerializer, SubscriptionSerializer, FavoriteRecipeSerializer
+from recipes.models import User, Tag, Ingredient, Recipe, IngredientQuantity, Subscription, FavoriteRecipe, ShoppingCart
+from .serializers import AddFavoriteRecipeSerializer, TagSerializer, IngredientSerializer, RecipeSerializer, SubscriptionSerializer, FavoriteRecipeSerializer, UserSerializer
 from .pagination import CustomPageNumberPagination
 from .filters import RecipesFilter
 from .permissions import IsAdminIsOwnerOrReadOnly
@@ -9,22 +9,34 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from rest_framework.permissions import (
+    AllowAny, IsAuthenticatedOrReadOnly, IsAuthenticated
+)
 
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
+    """Вьюсет работы с обьектами класса Tag."""
+
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
+    """Вьюсет для работы с обьектами класса Ingredient."""
+
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
+    search_fields = ('^name',)
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all().order_by('-created')
     serializer_class = RecipeSerializer
     pagination_class = CustomPageNumberPagination
     permission_classes = [IsAdminIsOwnerOrReadOnly, ]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = filters.RecipeFilter
 
 
     @action(
@@ -71,12 +83,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = get_object_or_404(Recipe, id=pk)
 
         if request.method == 'POST':
-            '''if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
-                return Response(
-                    {'errors': f'Повторно - \"{recipe.name}\" добавить нельзя,'
-                               f'он уже есть в списке покупок'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )'''
             ShoppingCart.objects.create(user=user, recipe=recipe)
             serializer = AddFavoriteRecipeSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -87,79 +93,84 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 obj.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
             return Response(
-                {'errors': 'Рецепта нет в списке покупок',
+                {'errors': 'Рецепта нет в списке покупок'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
 
+'''
 class UserViewSet(UserViewSet):
-    """Вьюсет для работы с обьектами класса User и подписки на авторов."""
+    """Вьюсет для работы с User"""
 
     queryset = User.objects.all()
-    serializer_class = CustomUserSerializer
-    permission_classes = (IsAuthenticatedOrReadOnly,)
-    pagination_class = LimitOffsetPagination
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminIsOwnerOrReadOnly, ]
+    pagination_class = CustomPageNumberPagination
 
     @action(
         detail=False,
-        methods=('get',),
-        permission_classes=(IsAuthenticated, ),
-        url_path='subscriptions',
-        url_name='subscriptions',
+        methods=['get', 'patch'],
+        url_path='me',
+        url_name='me',
+        permission_classes=(IsAuthenticated,)
     )
-    def subscriptions(self, request):
-        """Метод для создания страницы подписок"""
-
-        queryset = User.objects.filter(follow__user=self.request.user)
-        if queryset:
-            pages = self.paginate_queryset(queryset)
-            serializer = FollowSerializer(pages, many=True,
-                                          context={'request': request})
-            return self.get_paginated_response(serializer.data)
-        return Response('Вы ни на кого не подписаны.',
-                        status=status.HTTP_400_BAD_REQUEST)
+    def get_me(self, request):
+        """Профиль пользователя"""
+        if request.method == 'PATCH':
+            serializer = UserSerializer(
+                request.user, data=request.data,
+                partial=True, context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = UserSerializer(
+            request.user, context={'request': request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(
         detail=True,
-        methods=('post', 'delete'),
-        permission_classes=(IsAuthenticated,),
+        methods=['post', 'delete'],
         url_path='subscribe',
         url_name='subscribe',
-    )
-    def subscribe(self, request, id):
-        """Метод для управления подписками """
-
-        user = request.user
+        permission_classes=(IsAuthenticated,)
+    )'''
+    '''def get_subscribe(self, request, id):
         author = get_object_or_404(User, id=id)
-        change_subscription_status = Follow.objects.filter(
-            user=user.id, author=author.id
-        )
         if request.method == 'POST':
-            if user == author:
-                return Response('Вы пытаетесь подписаться на себя!!',
-                                status=status.HTTP_400_BAD_REQUEST)
-            if change_subscription_status.exists():
-                return Response(f'Вы теперь подписаны на {author}',
-                                status=status.HTTP_400_BAD_REQUEST)
-            subscribe = Follow.objects.create(
-                user=user,
-                author=author
+            serializer = SubscriptionSerializer(
+                data={'subscriber': request.user.id, 'author': author.id}
             )
-            subscribe.save()
-            return Response(f'Вы подписались на {author}',
-                            status=status.HTTP_201_CREATED)
-        if change_subscription_status.exists():
-            change_subscription_status.delete()
-            return Response(f'Вы отписались от {author}',
-                            status=status.HTTP_204_NO_CONTENT)
-        return Response(f'Вы не подписаны на {author}',
-                        status=status.HTTP_400_BAD_REQUEST)
-
-
-class SubscriptionViewSet(viewsets.ModelViewSet):
-    queryset = Subscription.objects.all()
-    serializer_class = SubscriptionSerializer
-
-class FavoriteRecipeViewSet(viewsets.ModelViewSet):
-    queryset = FavoriteRecipe.objects.all()
-    serializer_class = FavoriteRecipeSerializer
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            author_serializer = SubscriptionShowSerializer(
+                author, context={'request': request}
+            )
+            return Response(
+                author_serializer.data, status=status.HTTP_201_CREATED
+            )
+        subscription = get_object_or_404(
+            Subscription, subscriber=request.user, author=author
+        )
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+'''
+    '''@action(
+        detail=False,
+        methods=['get'],
+        url_path='subscriptions',
+        url_name='subscriptions',
+        permission_classes=(permissions.IsAuthenticated,)
+    )
+    def get_subscriptions(self, request):
+        """Возвращает авторов контента, на которых подписан
+        текущий пользователь.."""
+        authors = User.objects.filter(author__subscriber=request.user)
+        paginator = PageNumberPagination()
+        result_pages = paginator.paginate_queryset(
+            queryset=authors, request=request
+        )
+        serializer = SubscriptionShowSerializer(
+            result_pages, context={'request': request}, many=True
+        )
+        return paginator.get_paginated_response(serializer.data)'''

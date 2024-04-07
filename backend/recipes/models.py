@@ -1,14 +1,58 @@
 from django.db import models
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
+from django.core.validators import (MinValueValidator, MaxValueValidator)
 
 
-User = get_user_model()
+class User(AbstractUser):
+    """Модель для пользователей"""
+
+    email = models.EmailField(
+        max_length=254,
+        unique=True,
+        blank=False,
+        db_index=True,
+        verbose_name='Email',
+        help_text='Введите email'
+    )
+
+    username = models.CharField(
+        max_length=254,
+        unique=True,
+        blank=False,
+        verbose_name='Логин',
+        help_text='Введите ваш логин'
+    )
+
+    password = models.CharField(
+        max_length=100,
+        blank=False,
+        verbose_name='Пароль',
+        help_text='Введите пароль'
+    )
+
+    first_name = models.TextField(
+        verbose_name='Имя',
+        blank=False,
+        null=False,
+        help_text='Введите имя'
+    )
+    second_name = models.TextField(
+        verbose_name='Фамилия',
+        blank=False,
+        null=False,
+        help_text='Введите фамилию'
+    )
+    groups = None
+    user_permissions = None
+
+    def __str__(self):
+        return self.username
 
 
 class Tag(models.Model):
     """Моедель для тега"""
     name = models.CharField(max_length=50, unique=True, verbose_name='Название')
-    color_code = models.CharField(max_length=7, unique=True, verbose_name='Цветовой код')  # Например, #49B64E
+    color = models.CharField(max_length=7, unique=True, verbose_name='Цветовой код')  # Например, #49B64E
     slug = models.SlugField(unique=True, verbose_name='Slug')
 
     def __str__(self):
@@ -23,7 +67,7 @@ class Ingredient(models.Model):
     """Модель для описание ингридиента"""
     name = models.CharField(max_length=255, verbose_name='Название')
     quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Количество')
-    unit = models.CharField(max_length=20, verbose_name='Единицы измерения')
+    measurement_unit = models.CharField(max_length=20, verbose_name='Единицы измерения')
 
     def __str__(self):
         return self.name
@@ -35,13 +79,19 @@ class Ingredient(models.Model):
 
 class Recipe(models.Model):
     """Модель для описания рецепта"""
+    # is_favorited # is_in_shopping_cart
     author = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Автор')
-    title = models.CharField(max_length=255, verbose_name='Название')
+    name = models.CharField(max_length=255, verbose_name='Название')
     image = models.ImageField(upload_to='recipes/', blank=True, verbose_name='Картинка')
-    description = models.TextField(verbose_name='Описание')
+    text = models.TextField(verbose_name='Описание')
     ingredients = models.ManyToManyField(Ingredient, through='IngredientQuantity', verbose_name='Ингредиенты')
     tags = models.ManyToManyField(Tag, verbose_name='Теги')
-    cooking_time = models.PositiveIntegerField(verbose_name='Время приготовления')
+    cooking_time = models.PositiveSmallIntegerField(
+        'Время приготовления',
+        validators=[
+            MinValueValidator(1, message='Минимальное значение 1!'),
+            MaxValueValidator(300, message='Максимальное значение 300!')
+        ])
     created = models.DateTimeField(
         auto_now_add=True,
         db_index=True,
@@ -49,7 +99,7 @@ class Recipe(models.Model):
     )
 
     def __str__(self):
-        return self.title
+        return self.name
 
     class Meta:
         verbose_name = 'Рецепт'
@@ -70,8 +120,14 @@ class IngredientQuantity(models.Model):
 
 class Subscription(models.Model):
     """Модель для подписок"""
-    subscriber = models.ForeignKey(User, related_name='subscriptions', on_delete=models.CASCADE)
-    target_user = models.ForeignKey(User, related_name='subscribers', on_delete=models.CASCADE)
+    subscriber = models.ForeignKey(
+        User, related_name='subscriptions',
+        verbose_name='Подписчик', on_delete=models.CASCADE
+    )
+    target_user = models.ForeignKey(
+        User, related_name='subscribers_targets',
+        verbose_name='Автор рецепта', on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

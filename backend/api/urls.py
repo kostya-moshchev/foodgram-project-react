@@ -1,14 +1,31 @@
-from rest_framework.routers import DefaultRouter
 from rest_framework import routers
 from django.urls import path, include
-from .views import RecipeViewSet, IngredientViewSet
 
-router = routers.DefaultRouter()
-router.register(r'recipes', RecipeViewSet)
-router.register(r'ingredients', IngredientViewSet)
+from .views import RecipeViewSet, IngredientViewSet, TagViewSet, UserViewSet, UserViewSet
 
+app_name = 'api'
+
+auth_urls = [
+    path('token/', TokenView.as_view()),
+    path('signup/', AuthViewSet.as_view()),
+]
+
+v1_router = routers.DefaultRouter()
+
+#reviews_url = r"titles/(?P<title_id>\d+)/reviews"
+#comments_url = rf"{reviews_url}/(?P<review_id>\d+)/comments"
+
+# v1_router.register(
+    reviews_url, ReviewViewSet, basename='review'
+)
+# v1_router.register(
+    comments_url, CommentViewSet, basename='comment'
+)
+v1_router.register(r'users', UserViewSet, basename='users')
+v1_router.register(r'categories', RecipeViewSet, basename='recipes')
+v1_router.register(r'genres', IngredientViewSet, basename='ingredients')
+v1_router.register(r'titles', TagViewSet, basename='tags')
 urlpatterns = [
-    path('api/', include(router.urls)),
-    path('api/recipes/download_shopping_cart/', RecipeViewSet.as_view({'get': 'download_shopping_cart'}), name='download_shopping_cart'),
-    path('api/recipes/<int:pk>/shopping_cart/', RecipeViewSet.as_view({'post': 'shopping_cart'}), name='recipe_shopping_cart'),
+    path('v1/', include(v1_router.urls)),
+    # path('v1/auth/', include(auth_urls)),
 ]
