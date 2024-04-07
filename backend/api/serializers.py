@@ -1,8 +1,22 @@
+import base64
+
+from djoser.serializers import UserSerializer, UserCreateSerializer
 from rest_framework import serializers
 from recipes.models import User, Tag, Ingredient, Recipe, IngredientQuantity, Subscription, FavoriteRecipe
 from rest_framework.serializers import ModelSerializer
+from rest_framework.fields import SerializerMethodField
 
 
+class Base64ImageField(serializers.ImageField):
+    """Кодирование изображения в base64."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            format, imgstr = data.split(';base64,')
+            ext = format.split('/')[-1]
+            data = ContentFile(base64.b64decode(imgstr), name='photo.' + ext)
+
+        return super().to_internal_value(data)
 
 class CustomUserSerializer(UserCreateSerializer):
     """Сериализатор для модели User."""
@@ -22,7 +36,7 @@ class CustomUserSerializer(UserCreateSerializer):
         user = self.context.get('request').user
         if user.is_anonymous:
             return False
-        return Follow.objects.filter(user=user, author=obj.id).exists()
+        return Subscription.objects.filter(user=user, author=obj.id).exists()
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -39,6 +53,7 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = '__all__'
+        read_only_fields = ('id', 'name', 'measurement_unit',)
 
 
 class IngredientQuantitySerializer(serializers.ModelSerializer):
@@ -50,6 +65,19 @@ class IngredientQuantitySerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(
+        many=True,
+        read_only=True
+    )
+    author = UserSerializer(
+        read_only=True
+    )
+    ingredients = IngredientSerializer(
+        source='ingredient_amounts',
+        many=True,
+        read_only=True
+    )
+    image = Base64ImageField()
     ingredients = IngredientQuantitySerializer(many=True)
     tags = TagSerializer(many=True)
 

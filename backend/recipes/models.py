@@ -11,10 +11,24 @@ class User(AbstractUser):
         unique=True,
         blank=False,
         db_index=True,
-        verbose_name='Email',
         help_text='Введите email'
+        verbose_name='Электронная почта',
+        unique=True
     )
-
+    username = models.CharField(
+        max_length=150,
+        verbose_name='Имя пользователя',
+        unique=True,
+        db_index=True
+    )
+    first_name = models.CharField(
+        max_length=150,
+        verbose_name='Имя'
+    )
+    last_name = models.CharField(
+        max_length=150,
+        verbose_name='Фамилия'
+    )
     username = models.CharField(
         max_length=254,
         unique=True,
@@ -22,31 +36,22 @@ class User(AbstractUser):
         verbose_name='Логин',
         help_text='Введите ваш логин'
     )
-
     password = models.CharField(
         max_length=100,
         blank=False,
         verbose_name='Пароль',
         help_text='Введите пароль'
     )
-
-    first_name = models.TextField(
-        verbose_name='Имя',
-        blank=False,
-        null=False,
-        help_text='Введите имя'
-    )
-    second_name = models.TextField(
-        verbose_name='Фамилия',
-        blank=False,
-        null=False,
-        help_text='Введите фамилию'
-    )
     groups = None
     user_permissions = None
 
     def __str__(self):
         return self.username
+    
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+        ordering = ('id',)
 
 
 class Tag(models.Model):
@@ -73,6 +78,7 @@ class Ingredient(models.Model):
         return self.name
 
     class Meta:
+        ordering = ('name',)
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
 
@@ -108,24 +114,30 @@ class Recipe(models.Model):
 
 
 class IngredientQuantity(models.Model):
+    """Количество ингридиентов в отдельных рецептах"""
+
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
-    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Количество')
+    quantity = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name='Количество',
+        validators=[
+            MinValueValidator(1, message='Минимальное количество 1!')],)
     unit = models.CharField(max_length=20, verbose_name='Единицы измерения')
 
     class Meta:
         verbose_name = 'Количество ингредиента'
         verbose_name_plural = 'Количество ингредиентов'
+        unique_together = ['recipe', 'ingredient']
 
 
 class Subscription(models.Model):
     """Модель для подписок"""
-    subscriber = models.ForeignKey(
-        User, related_name='subscriptions',
+    user = models.ForeignKey(
+        User, related_name='follower',
         verbose_name='Подписчик', on_delete=models.CASCADE
     )
-    target_user = models.ForeignKey(
-        User, related_name='subscribers_targets',
+    author = models.ForeignKey(
+        User, related_name='follow',
         verbose_name='Автор рецепта', on_delete=models.CASCADE
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -139,8 +151,12 @@ class Subscription(models.Model):
 
 class FavoriteRecipe(models.Model):
     """модель для Избранного"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='favorite_recipes')
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, verbose_name='Рецепт', related_name='favorited_by')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, verbose_name='Пользователь',
+        related_name='favorites')
+    recipe = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE, verbose_name='Рецепт',
+        related_name='favorites')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата добавления')
 
     class Meta:
@@ -171,6 +187,12 @@ class ShoppingCart(models.Model):
     class Meta:
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_user_recipe'
+            )
+        ]
 
     def __str__(self):
         """Метод строкового представления модели."""

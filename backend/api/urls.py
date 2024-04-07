@@ -21,11 +21,12 @@ v1_router = routers.DefaultRouter()
 # v1_router.register(
     comments_url, CommentViewSet, basename='comment'
 )
-v1_router.register(r'users', UserViewSet, basename='users')
-v1_router.register(r'categories', RecipeViewSet, basename='recipes')
-v1_router.register(r'genres', IngredientViewSet, basename='ingredients')
-v1_router.register(r'titles', TagViewSet, basename='tags')
+v1_router.register(r'tags', TagViewSet, basename='tags')
+# v1_router.register(r'categories', RecipeViewSet, basename='recipes')
+v1_router.register(r'ingredients', IngredientViewSet, basename='ingredients')
+# v1_router.register(r'titles', TagViewSet, basename='tags')
 urlpatterns = [
     path('v1/', include(v1_router.urls)),
+    path('auth/', include('djoser.urls.authtoken')),
     # path('v1/auth/', include(auth_urls)),
 ]

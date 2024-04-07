@@ -19,7 +19,8 @@ from rest_framework.permissions import (
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     """Вьюсет работы с обьектами класса Tag."""
-
+    
+    permission_classes = (AllowAny,)
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
 
@@ -27,8 +28,10 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     """Вьюсет для работы с обьектами класса Ingredient."""
 
     queryset = Ingredient.objects.all()
+    permission_classes = (AllowAny,)
     serializer_class = IngredientSerializer
     search_fields = ('^name',)
+    pagination_class = CustomPageNumberPagination
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all().order_by('-created')
