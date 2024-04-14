@@ -1,7 +1,7 @@
-from django.contrib import admin
-from .models import User, Tag, Ingredient, Recipe, IngredientQuantity, Subscription, FavoriteRecipe, ShoppingCart
 from django.contrib.admin import ModelAdmin, register
 
+from .models import (User, Tag, Ingredient, Recipe, Subscription,
+                     FavoriteRecipe, ShoppingCart)
 
 
 @register(Ingredient)
@@ -48,7 +48,7 @@ class TagAdmin(ModelAdmin):
 
 
 @register(User)
-class MyUserAdmin(UserAdmin):
+class MyUserAdmin(ModelAdmin):
 
     list_display = ('pk', 'username', 'email', 'first_name', 'last_name',)
     list_filter = ('username', 'email')

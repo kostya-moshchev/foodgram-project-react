@@ -8,3 +8,8 @@ pytest-django==4.4.0
 pytest-pythonpath==0.7.3
 djoser
 Pillow
+gunicorn==20.1.0
+django-cors-headers==3.13.0
+psycopg2-binary==2.9.3
+flake8==6.0.0
+flake8-isort==6.0.0
