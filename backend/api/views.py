@@ -164,7 +164,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             obj.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(
-            {'errors': f'Этот рецепт не добавлен'},
+            {'errors': 'Этот рецепт не добавлен'},
             status=status.HTTP_400_BAD_REQUEST
         )
 

@@ -21,7 +21,8 @@ class Command(BaseCommand):
             ingredients = []
             for row in reader:
                 if not Ingredient.objects.filter(
-                 name=row[0], measurement_unit=row[1]).exists():
+                    name=row[0], measurement_unit=row[1]
+                ).exists():
                     ingredient = Ingredient(
                         name=row[0],
                         measurement_unit=row[1],
