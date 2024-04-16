@@ -1,4 +1,4 @@
-from django_filters import rest_framework, FilterSet, filters
+from django_filters.rest_framework import FilterSet, filters
 
 from recipes.models import Recipe, Ingredient, Tag
 
@@ -16,24 +16,24 @@ class RecipeFilter(FilterSet):
 
     class Meta:
         model = Recipe
-        fields = ('tags', 'author', 'is_favorited', 'is_in_shopping_cart')
+        fields = ('tags', 'author',)
 
     def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
         if value and not user.is_anonymous:
-            return queryset.filter(favorites__user=user)
+            return queryset.filter(favoriterecipe_related_recipe__user=user)
         return queryset
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
         user = self.request.user
         if value and not user.is_anonymous:
-            return queryset.filter(shopping_cart__user=user)
+            return queryset.filter(shoppingcart_related_recipe__user=user)
         return queryset
 
 
 class IngredientFilter(FilterSet):
     """Поиск по названию ингредиента."""
-    name = rest_framework.CharFilter(lookup_expr='startswith')
+    name = filters.CharFilter(lookup_expr='startswith')
 
     class Meta:
         model = Ingredient
